@@ -4,9 +4,16 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement; // For loading scenes
 using System.Collections;
 
+[System.Serializable]
+public class Challenge
+{
+    public int[] ChallengeAI;
+}
+
 public class MainMenu : MonoBehaviour
 {
     // Variables
+    [Header("AI")]
     public int[] currentAI = new int[56]; // Array to store AI levels
     public Image[] AIImages; // Array of AI images (50 images)
     public Text[] AITexts; // Array of AI level texts (50 texts)
@@ -20,10 +27,26 @@ public class MainMenu : MonoBehaviour
     public Text Highscore; // Text to display the highscore
     public Text Best5020Time; // Text to display the best 50/20 mode time
 
-    public bool UseApplicationDataPath = true; // Flag to determine if Application.persistentDataPath should be used
+    public bool UseApplicationDataPath = true; // Flag to determine if "data:/" should be used
     public string PathToUse; // Custom path to use if UseApplicationDataPath is false
 
     public CanvasGroup[] Groups; // CanvasGroups for fade effect
+    [Header("Offices")]
+    public Transform SelectedBorder;
+    public Image[] Requirements;
+    public Transform[] OfficeButtons;
+    [Header("Power-Ups")]
+    public Image[] PowerUpsImages;
+    public GameObject[] PowerUpActiveTxt;
+    public Text[] PowerUpTexts;
+    [Header("Challenges")]
+    public int ChallengeAmount;
+    public Transform ChallengeParent;
+    public Sprite ButtonSelectedSprite;
+    public Sprite NormalButtonSprite;
+    public Challenge[] Challenges;
+    private Image LastSelectedChallenge;
+    int currentChallenge = -1;
 
     private int currentSelected = 0; // Index of currently selected AI
     private int highscore = 0; // Variable to store highscore
@@ -53,9 +76,207 @@ public class MainMenu : MonoBehaviour
         UpdateAISelection();
         UpdateCurrentPointValue();
         UpdateHighscoreText();
+        LoadOfficeRequirements();
+        LoadPowerUps();
+        LoadChallenges();
 
         // Fade in all CanvasGroups
         StartCoroutine(FadeInGroups());
+    }
+
+    public void SelectChallenge(int index)
+    {
+        Debug.Log("Selected Challenge with index "+index);
+        if (LastSelectedChallenge != null)
+        {
+            LastSelectedChallenge.sprite = NormalButtonSprite;
+        }
+        ChallengeParent.GetChild(index).GetComponent<Image>().sprite = ButtonSelectedSprite;
+        LastSelectedChallenge = ChallengeParent.GetChild(index).GetComponent<Image>();
+        currentChallenge = index;
+        for (int i = 0; i < 50; i++)
+        {
+            currentAI[i] = Challenges[index].ChallengeAI[i];
+            if (i < 50)
+            {
+                AITexts[i].text = currentAI[i].ToString();
+            }
+            if (i < 50)
+            UpdateAIImageAlpha(i);
+        }
+        //SaveAILevels();
+        DataManager.SaveValue<int>("Challenge", index, "data:/");
+        UpdateCurrentPointValue();
+    }
+
+    public void StartChallenge()
+    {
+        SaveAILevels();
+        int Office = DataManager.GetValue<int>("Office", "data:/");
+        StartCoroutine(FadeOutGroupsAndLoadScene("ControlsSceneLoader"));
+        int totalPoints = 0;
+        for (int i = 0; i < 50; i++)
+        {
+            currentAI[i] = Challenges[currentChallenge].ChallengeAI[i];
+            if (i < 50)
+            {
+                AITexts[i].text = currentAI[i].ToString();
+            }
+            if (i < 50)
+            UpdateAIImageAlpha(i);
+        }
+        //SaveAILevels();
+        DataManager.SaveValue<int>("Challenge", currentChallenge, "data:/");
+        UpdateCurrentPointValue();
+        for (int i = 0; i < currentAI.Length; i++)
+        {
+            totalPoints += currentAI[i] * 10; // Each level adds 10 points, so level 1 = 10 points, level 20 = 200 points
+        }
+
+        DataManager.SaveValue<int>("currentPoints", totalPoints, "data:/");
+        if (Office == 0 && Random.value <= 0.03f)
+        {
+            Office = Random.Range(1,4);
+            DataManager.SaveValue<int>("Office", Office, "data:/");
+            DataManager.SaveValue<bool>("IsTemporaryOffice", true, "data:/");
+        }
+    }
+
+    void LoadChallenges()
+    {
+        int[] completedChallenges = DataManager.GetValue<int[]>("CompletedChallenges", "data:/");
+        if (!DataManager.ValueExists("CompletedChallenges", "data:/"))
+        {
+            completedChallenges = new int[16];
+        }
+        for (int i = 0; i < ChallengeParent.childCount; i++)
+        {
+            Transform ChallengeT = ChallengeParent.GetChild(i);
+            ChallengeT.GetChild(1).gameObject.SetActive(completedChallenges[i] == 1);
+            int capturedI = i;
+            ChallengeT.GetComponent<Button>().onClick.AddListener(() => SelectChallenge(capturedI));
+        }
+    }
+
+    void LoadPowerUps()
+    {
+        int Frigids = DataManager.GetValue<int>("Frigid", "data:/");
+        int Coins = DataManager.GetValue<int>("Coins", "data:/");
+        int Batteries = DataManager.GetValue<int>("Battery", "data:/");
+        int DDRepels = DataManager.GetValue<int>("DDRepel", "data:/");
+        bool frigid = DataManager.GetValue<bool>("UseFrigid", "data:/");
+        bool coins = DataManager.GetValue<bool>("UseCoins", "data:/");
+        bool battery = DataManager.GetValue<bool>("UseBattery", "data:/");
+        bool ddRepel = DataManager.GetValue<bool>("UseDDRepel", "data:/");
+
+        if (Frigids >= 1)
+        {
+            PowerUpTexts[0].text = Frigids.ToString();
+            PowerUpsImages[0].color = new Color(1f,1f,1f,1f);
+            PowerUpActiveTxt[0].SetActive(frigid);
+        }
+        if (Coins >= 1)
+        {
+            PowerUpTexts[1].text = Coins.ToString();
+            PowerUpsImages[1].color = new Color(1f,1f,1f,1f);
+            PowerUpActiveTxt[1].SetActive(coins);
+        }
+        if (Batteries >= 1)
+        {
+            PowerUpTexts[2].text = Batteries.ToString();
+            PowerUpsImages[2].color = new Color(1f,1f,1f,1f);
+            PowerUpActiveTxt[2].SetActive(battery);
+        }
+        if (DDRepels >= 1)
+        {
+            PowerUpTexts[3].text = DDRepels.ToString();
+            PowerUpsImages[3].color = new Color(1f,1f,1f,1f);
+            PowerUpActiveTxt[3].SetActive(ddRepel);
+        }
+    }
+
+    public void SelectPowerUp(int index)
+    {
+        int Frigids = DataManager.GetValue<int>("Frigid", "data:/");
+        int Coins = DataManager.GetValue<int>("Coins", "data:/");
+        int Batteries = DataManager.GetValue<int>("Battery", "data:/");
+        int DDRepels = DataManager.GetValue<int>("DDRepel", "data:/");
+
+        if (index == 0 && Frigids >= 1)
+        {
+            DataManager.SaveValue<bool>("UseFrigid", !DataManager.GetValue<bool>("UseFrigid", "data:/"), "data:/");
+            PowerUpActiveTxt[index].SetActive(DataManager.GetValue<bool>("UseFrigid", "data:/"));
+        }
+        if (index == 1 && Coins >= 1)
+        {
+            DataManager.SaveValue<bool>("UseCoins", !DataManager.GetValue<bool>("UseCoins", "data:/"), "data:/");
+            PowerUpActiveTxt[index].SetActive(DataManager.GetValue<bool>("UseCoins", "data:/"));
+        }
+        if (index == 2 && Batteries >= 1)
+        {
+            DataManager.SaveValue<bool>("UseBattery", !DataManager.GetValue<bool>("UseBattery", "data:/"), "data:/");
+            PowerUpActiveTxt[index].SetActive(DataManager.GetValue<bool>("UseBattery", "data:/"));
+        }
+        if (index == 3 && DDRepels >= 1)
+        {
+            DataManager.SaveValue<bool>("UseDDRepel", !DataManager.GetValue<bool>("UseDDRepel", "data:/"), "data:/");
+            PowerUpActiveTxt[index].SetActive(DataManager.GetValue<bool>("UseDDRepel", "data:/"));
+        }
+    }
+
+    void LoadOfficeRequirements()
+    {
+        int Highscore = 0;
+        int Office = DataManager.GetValue<int>("Office", "data:/");
+        bool isTemp = DataManager.GetValue<bool>("IsTemporaryOffice", "data:/");
+        if (isTemp)
+        {
+            Office = 0;
+            DataManager.SaveValue<int>("Office", 0, "data:/");
+        }
+        if (DataManager.ValueExists("Highscore", "data:/"))
+        {
+            Highscore = DataManager.GetValue<int>("Highscore", "data:/");
+        }
+        for (int i = 0; i < Requirements.Length; i++)
+        {
+            if (i == 0 && Highscore >= 2000f)
+            {
+                Requirements[i].gameObject.SetActive(false);
+                OfficeButtons[i+1].GetComponent<Image>().color = new Color32(255,255,255,255);
+            }
+            if (i == 1 && Highscore >= 5000f)
+            {
+                Requirements[i].gameObject.SetActive(false);
+                OfficeButtons[i+1].GetComponent<Image>().color = new Color32(255,255,255,255);
+            }
+            if (i == 2 && Highscore >= 8000f)
+            {
+                Requirements[i].gameObject.SetActive(false);
+                OfficeButtons[i+1].GetComponent<Image>().color = new Color32(255,255,255,255);
+            }
+        }
+        SelectedBorder.position = OfficeButtons[Office].position;
+    }
+
+    public void SelectOffice(int index)
+    {
+        int Highscore = 0;
+        if (DataManager.ValueExists("Highscore", "data:/"))
+        {
+            Highscore = DataManager.GetValue<int>("Highscore", "data:/");
+        }
+        Debug.Log("Index: "+index+", Highscore: "+Highscore);
+        if ((index == 0) || (index == 1 && Highscore >= 2000) || (index == 2 && Highscore >= 5000) || (index == 3 && Highscore >= 8000))
+        {
+            Debug.Log("Condition met, moving border.");
+            SelectedBorder.position = OfficeButtons[index].position;
+            DataManager.SaveValue<int>("Office", index, "data:/");
+        }
+        else
+        {
+            Debug.Log("Condition not met.");
+        }
     }
 
     void Update()
@@ -330,7 +551,7 @@ public class MainMenu : MonoBehaviour
     // Function to save the current AI levels
     private void SaveAILevels()
     {
-        string path = UseApplicationDataPath ? Application.persistentDataPath : PathToUse;
+        string path = UseApplicationDataPath ? "data:/" : PathToUse;
         DataManager.SaveValue(saveKey, currentAI, path);
     }
 
@@ -374,9 +595,9 @@ public class MainMenu : MonoBehaviour
     // Function to load the highscore
     private void LoadHighscore()
     {
-        if (DataManager.ValueExists(highscoreKey, Application.persistentDataPath))
+        if (DataManager.ValueExists(highscoreKey, "data:/"))
         {
-            highscore = DataManager.GetValue<int>(highscoreKey, Application.persistentDataPath);
+            highscore = DataManager.GetValue<int>(highscoreKey, "data:/");
         }
         else
         {
@@ -453,6 +674,7 @@ public class MainMenu : MonoBehaviour
     public void GO()
     {
         SaveAILevels();
+        int Office = DataManager.GetValue<int>("Office", "data:/");
         StartCoroutine(FadeOutGroupsAndLoadScene("ControlsSceneLoader"));
         int totalPoints = 0;
         for (int i = 0; i < currentAI.Length; i++)
@@ -461,5 +683,12 @@ public class MainMenu : MonoBehaviour
         }
 
         DataManager.SaveValue<int>("currentPoints", totalPoints, "data:/");
+        if (Office == 0 && Random.value <= 0.03f)
+        {
+            Office = Random.Range(1,4);
+            DataManager.SaveValue<int>("Office", Office, "data:/");
+            DataManager.SaveValue<bool>("IsTemporaryOffice", true, "data:/");
+        }
+        DataManager.SaveValue<int>("Challenge", -1, "data:/");
     }
 }

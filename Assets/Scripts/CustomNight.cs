@@ -105,12 +105,23 @@ public class CustomNight : MonoBehaviour
     public AudioSource ErrorSound;
     private bool isLoadingWin;
     public AudioSource PowerOut;
-    public Sprite OfficePowerOut;
     public GameObject LowerUI;
     public GameObject UpperUI;
+    public GameObject DisableOnJumpscare;
+    [Header("Office")]
+    public Image MainOffice;
+    public Animator Desk;
+    public string[] MainOfficeSprites;
+    public string[] DeskOfficeSprites;
+    public string CandyCadetAddress;
+    private Sprite OfficePowerOut;
+    public Image SpringtrapFlash;
+    public string SpringtrapFlashPath;
     [Header("Dee Dee")]
     public bool DeeDeeEnabled = true;
     public float DeeDeeChance = 0.1f;
+    public float additionalXORChance = 0.01f;
+    public int DeeDeeForceCharacter = -1;
     public string DeeDeeAddress;
     public string XORAddress;
     public string XORSoundAddress;
@@ -119,11 +130,56 @@ public class CustomNight : MonoBehaviour
     private bool is5020 = false;
     public string[] DeeDeeSoundAddress;
     public AudioSource DeeDeeSoundAS;
+    public AudioSource DeeDeeSoundAS2;
     public Animator NewChallengerAnimator;
     public string NewChallengerAddress;
     public string NewChallengerAudioAddress;
+    bool XORHappened = false;
     [Header("Secret Chars")]
     public string[] FredbearJumpscareAddresses;
+    public string PlushtrapChairAddress;
+    private int PlushtrapState = -1;
+    private string PlushtrapJoinTime;
+    public string[] PlushtrapJumpscareAddress;
+    public GameObject PlushtrapContainer;
+    public Animator PlushtrapAnimator;
+    Coroutine MoveCor;
+    [Header("Bonnet")]
+    public Animator BonnetAnimator;
+    public string BonnetAnimatorAddress;
+    public string[] BonnetJumpscareAddresses;
+    private bool bonnetActive = false;
+    public string BonnetVoiceline;
+    public string NoseBoopSoundAddress;
+    public AudioSource bonnetSounds;
+    [Header("LOLBit")]
+    public Image LOLBit;
+    public string LOLBitAddress;
+    public AudioSource Beeping;
+    public string BeepingAddress;
+    private bool LOLBitActive;
+    [Header("Nightmare Chica")]
+    public RectTransform UpperNC;
+    public RectTransform LowerNC;
+    public string UpperJawAddress;
+    public string LowerJawAddress;
+    public string[] NightmareChicaJumpscareAddresses;
+    [Header("Minireenas")]
+    public Image Minireenas;
+    public string MinireenasAddress;
+    private bool ActivateMinireenasN = false;
+    private float MinireenaTimer = 0f;
+    [Header("RWQ")]
+    public GameObject RWQCarrier;
+    public Image RWQ;
+    public string RWQAddress;
+    private bool activateRWQNext;
+    private float RWQTimer;
+    [Header("Easter Eggs")]
+    public GameObject Tangle;
+    public GameObject Bouncepot;
+    public GameObject WhiteRabbit;
+    public GameObject DeskHat;
     [Header("Shop")]
     public Image DCoin;
     public Sprite DCoinClickSprite;
@@ -135,6 +191,7 @@ public class CustomNight : MonoBehaviour
     public AudioSource BuySFX;
     private bool DCoinActive;
     [Header("Animatronics")]
+    private bool PlushieCoroutineActive = false;
     public AudioSource Block;
     public Image JumpscareImage;
     public string[] JumpscareSoundAdresses;
@@ -388,6 +445,10 @@ public class CustomNight : MonoBehaviour
     private bool ToiletBowlBonnieIsInOffice;
     public string[] ToiletBowlBonnieJumpscareAddresses;
     public GameObject[] Freddles;
+    public Transform[] FreddlePositionsOffice0;
+    public Transform[] FreddlePositionsOffice1;
+    public Transform[] FreddlePositionsOffice2;
+    public Transform[] FreddlePositionsOffice3;
     public Transform FreddleSmoke;
     public AudioSource FreddlesSounds;
     public string[] NightmareFreddyAddresses;
@@ -411,17 +472,127 @@ public class CustomNight : MonoBehaviour
     public AudioSource[] RFoxyHelpful;
     public AudioSource[] RFoxyUnHelpful;
     private bool isSoundProof;
+    private bool trueCamsActive = false;
+    int office = -1;
+    private float lastValidDegrees = 60f;
+    private float startTimer = 0f;
+
+    void LoadOffice()
+    {
+        switch (DataManager.GetValue<int>("Office", "data:/"))
+        {
+            case 0:
+            MainOffice.sprite = load_sprite(MainOfficeSprites[0]);
+            Desk.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(DeskOfficeSprites[0]);
+            CandyCadet.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(CandyCadetAddress);
+            CandyCadet.gameObject.SetActive(true);
+            OfficePowerOut = load_sprite(MainOfficeSprites[2]);
+            office = 0;
+            StartCoroutine(UCNOffice());
+            break;
+            case 1:
+            MainOffice.sprite = load_sprite(MainOfficeSprites[3]);
+            OfficePowerOut = load_sprite(MainOfficeSprites[3]);
+            Desk.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(DeskOfficeSprites[1]);
+            office = 1;
+            break;
+            case 2:
+            MainOffice.sprite = load_sprite(MainOfficeSprites[4]);
+            load_sprite(MainOfficeSprites[5]);
+            OfficePowerOut = load_sprite(MainOfficeSprites[4]);
+            Desk.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(DeskOfficeSprites[2]);
+            office = 2;
+            StartCoroutine(FNaF3Office());
+            break;
+            case 3:
+            MainOffice.sprite = load_sprite(MainOfficeSprites[6]);
+            OfficePowerOut = load_sprite(MainOfficeSprites[6]);
+            Desk.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(DeskOfficeSprites[3]);
+            office = 3;
+            break;
+        }
+    }
+
+    void LoadPowerUps()
+    {
+        bool frigid = DataManager.GetValue<bool>("UseFrigid", "data:/");
+        bool coins = DataManager.GetValue<bool>("UseCoins", "data:/");
+        bool battery = DataManager.GetValue<bool>("UseBattery", "data:/");
+        bool ddRepel = DataManager.GetValue<bool>("UseDDRepel", "data:/");
+        int Frigids = DataManager.GetValue<int>("Frigid", "data:/");
+        int Coins = DataManager.GetValue<int>("Coins", "data:/");
+        int Batteries = DataManager.GetValue<int>("Battery", "data:/");
+        int DDRepels = DataManager.GetValue<int>("DDRepel", "data:/");
+        if (battery == true)
+        {
+            PercentLeft = 102f;
+            DataManager.SaveValue<int>("Battery", Batteries-1, "data:/");
+            DataManager.SaveValue<bool>("UseBattery", false, "data:/");
+            Debug.Log("Using A Battery");
+        }
+        if (ddRepel == true)
+        {
+            DeeDeeEnabled = false;
+            DataManager.SaveValue<int>("DDRepel", DDRepels-1, "data:/");
+            DataManager.SaveValue<bool>("UseDDRepel", false, "data:/");
+            Debug.Log("Using A Diddy Repel");
+        }
+        if (coins == true)
+        {
+            FazCoins += 3;
+            FazCoinCounter.text = FazCoins.ToString();
+            DataManager.SaveValue<int>("Coins", Coins-1, "data:/");
+            DataManager.SaveValue<bool>("UseCoins", false, "data:/");
+            Debug.Log("Using 3 Coins");
+        }
+        if (frigid == true)
+        {
+            lastValidDegrees = 50f;
+            currentDegrees = 50f;
+            DegreeText.text = "50°";
+            DataManager.SaveValue<int>("Frigid", Frigids-1, "data:/");
+            DataManager.SaveValue<bool>("UseFrigid", false, "data:/");
+            Debug.Log("Using Frigid");
+        }
+    }
+
+    IEnumerator UCNOffice()
+    {
+        while (PercentLeft > 0f)
+        {
+            MainOffice.sprite = load_sprite(MainOfficeSprites[0]);
+            yield return new WaitForSeconds(Random.Range(0.04f, 1f));
+            MainOffice.sprite = load_sprite(MainOfficeSprites[1]);
+            yield return new WaitForSeconds(Random.Range(0.06f, 0.19f));
+        }
+    }
+
+    IEnumerator FNaF3Office()
+    {
+        while (PercentLeft > 0f)
+        {
+            MainOffice.sprite = load_sprite(MainOfficeSprites[4]);
+            yield return new WaitForSeconds(Random.Range(0.04f, 0.2f));
+            MainOffice.sprite = load_sprite(MainOfficeSprites[5]);
+            yield return new WaitForSeconds(Random.Range(0.06f, 0.19f));
+        }
+    }
 
     void Start()
     {
-        // Initialize ventilation reset system
         Resources.UnloadUnusedAssets();
-        GC.Collect();
+		System.GC.WaitForPendingFinalizers();
+        System.GC.Collect();
         DataManager.SaveValue<int>("LastWonScore", DataManager.GetValue<int>("currentPoints", "data:/"), "data:/");
         ventilationCoroutine = StartCoroutine(VentilationCycle());
         LoadAILevels();
+        LoadOffice();
+        LoadPowerUps();
         StartCoroutine(PowerCoroutine());
-        StartCoroutine(CandyCadetCoroutine());
+        if (office == 0)
+        {
+            StartCoroutine(CandyCadetCoroutine());
+        }
         currentDegreePerSecond = FanDegreePerSecond + 1;
         int AIOver50Count = 0;
         for (int i = 0; i < currentAI.Length; i++)
@@ -659,6 +830,7 @@ public class CustomNight : MonoBehaviour
             }
 
             StartCoroutine(PlushieCoroutine());
+            PlushieCoroutineActive = true;
         }
         if (currentAI[33] >= 1)
         {
@@ -757,6 +929,29 @@ public class CustomNight : MonoBehaviour
             FreddlesSounds.clip = load_audioClip(NightmareFreddyAddresses[5]);
             FreddleSmoke.GetComponent<Animator>().runtimeAnimatorController = Resources.Load(NightmareFreddyAddresses[6]) as RuntimeAnimatorController;
             StartCoroutine(NightmareFreddyLoop());
+            for (int i = 0; i < Freddles.Length; i++)
+            {
+                if (office == 0)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice0[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice0[i].rotation;
+                }
+                if (office == 1)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice1[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice1[i].rotation;
+                }
+                if (office == 2)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice2[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice2[i].rotation;
+                }
+                if (office == 3)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice3[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice3[i].rotation;
+                }
+            }
             FreddlesSounds.Play();
         }
         if (currentAI[39] >= 1)
@@ -801,6 +996,11 @@ public class CustomNight : MonoBehaviour
 
         isJumpscaring = true;
         LowerUI.SetActive(false);
+        ElChipAdSound.volume = 0f;
+        ElChipAdUpper.gameObject.SetActive(false);
+        DisableOnJumpscare.SetActive(false);
+        LowerNC.gameObject.SetActive(false);
+        UpperNC.gameObject.SetActive(false);
         // Load the jumpscare sprites
         jumpscareSprites = LoadSprites(addresses);
 
@@ -843,6 +1043,32 @@ public class CustomNight : MonoBehaviour
     // Save the data and load the Game Over scene
     DataManager.SaveValue<string>("LastDeath", Character, "data:/");
     DataManager.SaveValue<float>("LastSurvival", TimerTime, "data:/");
+    int score = 0;
+    for (int i = 0; i < currentAI.Length; i++)
+    {
+        score += (currentAI[i]*10);
+    }
+    DataManager.SaveValue<int>("PowerUpOdds", 0, "data:/");
+    if (TimerTime >= 225f && score >= 1000)
+    {
+        DataManager.SaveValue<int>("PowerUpOdds", 7, "data:/");
+    }
+    else if (TimerTime >= 180f && score >= 500f)
+    {
+        DataManager.SaveValue<int>("PowerUpOdds", 6, "data:/");
+    }
+    else if (TimerTime >= 135f)
+    {
+        DataManager.SaveValue<int>("PowerUpOdds", 5, "data:/");
+    }
+    else if (TimerTime >= 90f)
+    {
+        DataManager.SaveValue<int>("PowerUpOdds", 4, "data:/");
+    }
+    else if (TimerTime >= 45f)
+    {
+        DataManager.SaveValue<int>("PowerUpOdds", 3, "data:/");
+    }
     int animatronicsAt20 = 0;
     foreach (int i in currentAI)
     {
@@ -927,6 +1153,7 @@ public class CustomNight : MonoBehaviour
     public void AcceptFoxy()
     {
         RFoxyBird.position = RFoxyBirdInitalPos;
+        RockstarFoxyMain.GetComponent<Image>().color = new Color(1f,1f,1f,1f);
         RockstarFoxyMain.Play("RFoxyGoUp");
         int RFoxyHelpfullness = Random.Range(1, 62)+currentAI[41]*2;
         RFoxyBirdActive = false;
@@ -955,6 +1182,7 @@ public class CustomNight : MonoBehaviour
     }
     public void SixtyDegrees()
     {
+        lastValidDegrees = 60f;
         currentDegrees = 60;
         if (!isJumpscaring)
         {
@@ -1149,6 +1377,83 @@ public class CustomNight : MonoBehaviour
         Destroy(smoke, 0.433f);
     }
 
+    void ActivateBonnet()
+    {
+        StartCoroutine(activateBonnet());
+    }
+
+    IEnumerator activateBonnet()
+    {
+        BonnetAnimator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(BonnetAnimatorAddress);
+        bonnetSounds.clip = Resources.Load<AudioClip>(BonnetVoiceline);
+        yield return new WaitForSeconds(4f);
+        bonnetSounds.Play();
+        BonnetAnimator.transform.localPosition = new Vector3(185.7f, -85.7f, 0f);
+        MoveCor = StartCoroutine(MoveTransform(BonnetAnimator.transform, new Vector3( -185.7f, -85.7f,0), 4f ));
+        StartCoroutine(BonnetFunction());
+        bonnetActive = true;
+    }
+
+    IEnumerator BonnetFunction()
+    {
+        yield return new WaitForSeconds(4f);
+        if (bonnetActive)
+        {
+            StartJumpscare(BonnetJumpscareAddresses, 4, "Bonnet");
+        }
+    }
+
+    public void BoopBonnet()
+    {
+        if (!bonnetActive)
+            return;
+
+        bonnetActive = false;
+        BonnetAnimator.Play("Boop");
+        bonnetSounds.clip = Resources.Load<AudioClip>(NoseBoopSoundAddress);
+        bonnetSounds.Play();
+        StopCoroutine(MoveCor);
+        StartCoroutine(MoveTransform(BonnetAnimator.transform, new Vector3( BonnetAnimator.transform.localPosition.x, -171.4f,0f), 1f ));
+        StartCoroutine(UnloadBonnet());
+    }
+
+    IEnumerator EnableLOLBit(bool isXOR)
+    {
+        yield return new WaitForSeconds(isXOR ? 42f : 10f);
+        LOLBitActive = true;
+        int i = 0;
+        LOLBit.sprite = load_sprite(LOLBitAddress);
+        LOLBit.gameObject.SetActive(true);
+        Beeping.clip = load_audioClip(BeepingAddress);
+        Beeping.Play();
+        Sound += 3;
+        while (i < 1000 && Input.GetKeyDown(KeyCode.Alpha1) == false)
+        {
+            i++;
+            yield return null;
+        }
+        while (i < 1000 && Input.GetKeyDown(KeyCode.Alpha2) == false)
+        {
+            i++;
+            yield return null;
+        }
+        while (i < 1000 && Input.GetKeyDown(KeyCode.Alpha1) == false)
+        {
+            i++;
+            yield return null;
+        }
+        Sound -= 3;
+        Beeping.Stop();
+        LOLBit.gameObject.SetActive(false);
+        LOLBitActive = false;
+    }
+
+    IEnumerator UnloadBonnet()
+    {
+        yield return new WaitForSeconds(0.5f);
+        BonnetAnimator.runtimeAnimatorController = null;
+    }
+
     IEnumerator ToiletBowlBonnieLoop()
     {
         float camTime = 0f;
@@ -1227,6 +1532,38 @@ public class CustomNight : MonoBehaviour
             ScrapBabyIsInOffice = false;
             ScrapbabyInOffice.sprite = load_sprite(ScrapbabyAddresses[0]);
         }
+    }
+
+    IEnumerator ActivateRWQ()
+    {
+        RWQ.sprite = load_sprite(RWQAddress);
+        activateRWQNext = true;
+        while (RWQCarrier.activeSelf == false)
+        {
+            yield return null;
+        }
+        while (RWQTimer < 10f)
+        {
+            RWQTimer += Time.deltaTime;
+            yield return null;
+        }
+        activateRWQNext = false;
+    }
+
+    IEnumerator ActivateMinireenas()
+    {
+        Minireenas.sprite = load_sprite(MinireenasAddress);
+        ActivateMinireenasN = true;
+        while (Minireenas.gameObject.activeSelf == false)
+        {
+            yield return null;
+        }
+        while (MinireenaTimer < 33.33f)
+        {
+            MinireenaTimer += Time.deltaTime;
+            yield return null;
+        }
+        ActivateMinireenasN = false;
     }
 
     IEnumerator FreddyLoop()
@@ -1857,6 +2194,45 @@ public class CustomNight : MonoBehaviour
             break;
         }
         yield return null;
+    }
+
+    IEnumerator NightmareChicaLoop()
+    {
+        UpperNC.localPosition = new Vector3(0f, 230.8278f, 0f);
+        LowerNC.localPosition = new Vector3(0f, -230.8278f, 0f);
+
+        UpperNC.GetComponent<Image>().sprite = load_sprite(UpperJawAddress);
+        LowerNC.GetComponent<Image>().sprite = load_sprite(LowerJawAddress);
+
+        float currentY = 230.8278f;
+
+        while (true)
+        {
+            if (currentVentilator != 2)
+            {
+                currentY -= 0.22222222222f * Time.deltaTime * 60f;
+            }
+            else
+            {
+                currentY += 0.88888888888f * Time.deltaTime * 60f;
+            }
+
+            UpperNC.localPosition = new Vector3(0f, currentY, 0f);
+            LowerNC.localPosition = new Vector3(0f, -currentY, 0f);
+
+            if (currentY < 60f)
+            {
+                StartJumpscare(NightmareChicaJumpscareAddresses, 3, "NightmareChica");
+                yield break;
+            }
+
+            if (currentY > 230.8278f)
+            {
+                break;
+            }
+
+            yield return null;
+        }
     }
 
     IEnumerator JackOChicaLoop()
@@ -3314,7 +3690,7 @@ public class CustomNight : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(10f);
-            if (!ElChipAdActive && MovementOppertunityC(currentAI[43], 29))
+            if (!ElChipAdActive && MovementOppertunityC(currentAI[43], 29) && !isJumpscaring)
             {
                 ElChipAdActive = true;
                 int random = Random.Range(0,3);
@@ -3594,6 +3970,23 @@ public class CustomNight : MonoBehaviour
                     {
                         fishCaught = true;
                         OldManConsequencesSounds[1].Play();
+                        bool gf1 = false;
+                        int all0C = 0;
+                        for (int i = 0; i < currentAI.Length; i++)
+                        {
+                            if (i == 26 && currentAI[26] == 1)
+                            {
+                                gf1 = true;
+                            }
+                            else if (i != 26 && currentAI[i] == 0)
+                            {
+                                all0C++;
+                            }
+                        }
+                        if (all0C == 55 && gf1 == true)
+                        {
+                            UnityEngine.SceneManagement.SceneManager.LoadScene("OldManConsequences");
+                        }
                         break;
                     }
 
@@ -3722,7 +4115,21 @@ public class CustomNight : MonoBehaviour
             PercentLeft -= GetPowerConsumptionRate();
             PercentText.text = ((int)PercentLeft).ToString();
             currentDegrees += currentDegreePerSecond;
-            currentDegrees = Mathf.Clamp(currentDegrees, 60, 120);
+            if (lastValidDegrees >= 60)
+            {
+                Debug.Log("Is Over 60!");
+                lastValidDegrees = currentDegrees;
+
+                currentDegrees = Mathf.Clamp(currentDegrees, 60f, 120);
+            }
+            else
+            {
+                Debug.Log("Is Under 60! CD: "+currentDegrees+" LVD");
+                currentDegrees = Mathf.Clamp(currentDegrees, currentDegrees-currentDegreePerSecond, 60);
+                lastValidDegrees = currentDegrees;
+                Debug.Log("LVD: "+lastValidDegrees+" CD: "+currentDegrees);
+            }
+            //currentDegrees = Mathf.Clamp(currentDegrees, 60, 120);
             if (!isJumpscaring)
             {
                 DegreeText.text = ((int)currentDegrees).ToString() + "°";
@@ -3951,7 +4358,7 @@ public class CustomNight : MonoBehaviour
             MoveMainBG(moveSpeed);
         }
 
-        if (Input.GetKeyDown(KeyCode.LeftAlt) && camsActive)
+        if (Input.GetKeyDown(KeyCode.L) && camsActive)
         {
             int switchTo = currentCam-1;
             if (switchTo <= 0)
@@ -3960,7 +4367,7 @@ public class CustomNight : MonoBehaviour
             }
             SwitchCamera(switchTo);
         }
-        if (Input.GetKeyDown(KeyCode.RightAlt) && camsActive)
+        if (Input.GetKeyDown(KeyCode.R) && camsActive)
         {
             int switchTo = currentCam+1;
             if (switchTo >= 9)
@@ -3968,6 +4375,49 @@ public class CustomNight : MonoBehaviour
                 switchTo = 1;
             }
             SwitchCamera(switchTo);
+        }
+        if (Input.GetKey(KeyCode.Return))
+        {
+            startTimer += Time.deltaTime;
+            if (startTimer >= 2f)
+            {
+                UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuLoader");
+            }
+        }
+        else if (Input.GetKey(KeyCode.RightAlt))
+        {
+            startTimer += Time.deltaTime;
+            if (startTimer >= 3f)
+            {
+                AMText.text = "6";
+            if (!isLoadingWin)
+            {
+                isLoadingWin = true;
+                int animatronicsAt20 = 0;
+                foreach (int i in currentAI)
+                {
+                    if (i == 20)
+                    {
+                        animatronicsAt20++;
+                    }
+                }
+                if (animatronicsAt20 >= 50)
+                {
+                    DataManager.SaveValue<float>("Best5020Time", TimerTime, "data:/");
+                }
+                int score = 0;
+                for (int i = 0; i < currentAI.Length; i++)
+                {
+                    score += (currentAI[i]*10);
+                }
+                DataManager.SaveValue<int>("LastWonScore", score, "data:/");
+                SceneManager.LoadScene("WinNightLoader");
+            }
+            }
+        }
+        else
+        {
+            startTimer = 0f;
         }
 
         // Update usage and sound blocks based on the current usage and sound values
@@ -4001,10 +4451,16 @@ public class CustomNight : MonoBehaviour
                         animatronicsAt20++;
                     }
                 }
-                if (animatronicsAt20 == 50)
+                if (animatronicsAt20 >= 50)
                 {
                     DataManager.SaveValue<float>("Best5020Time", TimerTime, "data:/");
                 }
+                int score = 0;
+                for (int i = 0; i < currentAI.Length; i++)
+                {
+                    score += (currentAI[i]*10);
+                }
+                DataManager.SaveValue<int>("LastWonScore", score, "data:/");
                 SceneManager.LoadScene("WinNightLoader");
             }
         }
@@ -4062,24 +4518,36 @@ public class CustomNight : MonoBehaviour
                 StartCoroutine(DeeDeeSequence());
             }
         }
+        else
+        {
+            if (is5020)
+            {
+                if (UnityEngine.Random.value <= DeeDeeChance)
+                {
+                    StartCoroutine(DeeDeeSequence());
+                }
+            }
+        }
     }
 
     IEnumerator DeeDeeSequence()
     {
         bool isXOR = false;
-        if (UnityEngine.Random.value > 0.1f && !is5020)
+        if (UnityEngine.Random.value > additionalXORChance && !is5020)
         {
             DeeDeeAnimator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(DeeDeeAddress);
             StartCoroutine(MoveTransform(DeeDeeTransform, new Vector3(DeeDeeTransform.localPosition.x, -120f, DeeDeeTransform.localPosition.z), 1f));
-            DeeDeeSoundAS.PlayOneShot(Resources.Load<AudioClip>(DeeDeeSoundAddress[UnityEngine.Random.Range(0,2)]));
+            DeeDeeSoundAS2.clip = (Resources.Load<AudioClip>(DeeDeeSoundAddress[UnityEngine.Random.Range(0,2)]));
+            DeeDeeSoundAS2.Play();
         }
-        else
+        else if (!XORHappened)
         {
             DeeDeeAnimator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(XORAddress);
             StartCoroutine(MoveTransform(DeeDeeTransform, new Vector3(DeeDeeTransform.localPosition.x, -120f, DeeDeeTransform.localPosition.z), 1f));
             DeeDeeSoundAS.clip = (Resources.Load<AudioClip>(XORSoundAddress));
             DeeDeeSoundAS.Play();
             isXOR = true;
+            XORHappened = true;
         }
         yield return new WaitForSeconds(12.5f);
         DeeDeeSoundAS.Stop();
@@ -4088,11 +4556,29 @@ public class CustomNight : MonoBehaviour
         {
             if (UnityEngine.Random.value >= 0.1f)
             {
+                List<int> animatronicsBelow5 = new List<int>();
+                for (int i = 0; i < currentAI.Length; i++)
+                {
+                    if (currentAI[i] < 5)
+                    {
+                        animatronicsBelow5.Add(i);
+                    }
+                }
+
+                if (animatronicsBelow5.Count == 0)
+                    yield break;
+
+                int selectedAnimatronic = animatronicsBelow5[Random.Range(0, animatronicsBelow5.Count)];
+                if (DeeDeeForceCharacter != -1)
+                {
+                    selectedAnimatronic = DeeDeeForceCharacter;
+                }
+
+                bool was0 = currentAI[selectedAnimatronic] == 0;
+                currentAI[selectedAnimatronic] = Mathf.Clamp(currentAI[selectedAnimatronic] + Random.Range(5, 11), 0, 20);
+                UpdateAnimatronicLevel(selectedAnimatronic, was0, false);
+
                 StartCoroutine(DisplayNewChallenger());
-                int RandomValue = Random.Range(0,56);
-                bool was0 = currentAI[RandomValue] <= 0;
-                currentAI[RandomValue] = Mathf.Clamp(currentAI[RandomValue]+(Random.Range(5,11)), 0, 20);
-                UpdateAnimatronicLevel(RandomValue, was0);
             }
         }
         else
@@ -4100,14 +4586,36 @@ public class CustomNight : MonoBehaviour
             StartCoroutine(DisplayNewChallenger());
             for (int i = 50; i < 56; i++)
             {
-                bool was0 = currentAI[i] <= 0;
-                currentAI[i] = 20;
-                UpdateAnimatronicLevel(i, was0);
+                float delay = GetDelayForAnimatronic(i);
+                StartCoroutine(HandleAnimatronicDelay(i, delay));
             }
         }
     }
 
-    void UpdateAnimatronicLevel(int index, bool was0)
+    float GetDelayForAnimatronic(int animatronic)
+    {
+        switch (animatronic)
+        {
+            case 50: return 14f;
+            case 51: return 24f;
+            case 52: return 0f;
+            case 53: return 21f;
+            case 54: return 35f;
+            case 55: return 7f;
+            default: return 0f;
+        }
+    }
+
+    IEnumerator HandleAnimatronicDelay(int animatronic, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        bool was0 = currentAI[animatronic] <= 0;
+        currentAI[animatronic] = 10;
+        UpdateAnimatronicLevel(animatronic, was0, true);
+    }
+
+    void UpdateAnimatronicLevel(int index, bool was0, bool isXor)
     {
         if (currentAI[26] >= 1 && was0 && index == 26)
         {
@@ -4324,7 +4832,11 @@ public class CustomNight : MonoBehaviour
                 NightmareBonnieBuy.SetActive(true);
             }
 
-            //StartCoroutine(PlushieCoroutine());
+            if (!PlushieCoroutineActive)
+            {
+                StartCoroutine(PlushieCoroutine());
+                PlushieCoroutineActive = true;
+            }
         if (currentAI[33] >= 1 && was0 && index == 33)
         {
             HappyFrogDC.currentAILevel = currentAI[33];
@@ -4422,6 +4934,29 @@ public class CustomNight : MonoBehaviour
             FreddlesSounds.clip = load_audioClip(NightmareFreddyAddresses[5]);
             FreddleSmoke.GetComponent<Animator>().runtimeAnimatorController = Resources.Load(NightmareFreddyAddresses[6]) as RuntimeAnimatorController;
             StartCoroutine(NightmareFreddyLoop());
+            for (int i = 0; i < Freddles.Length; i++)
+            {
+                if (office == 0)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice0[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice0[i].rotation;
+                }
+                if (office == 1)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice1[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice1[i].rotation;
+                }
+                if (office == 2)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice2[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice2[i].rotation;
+                }
+                if (office == 3)
+                {
+                    Freddles[i].transform.position = FreddlePositionsOffice3[i].position;
+                    Freddles[i].transform.rotation = FreddlePositionsOffice3[i].rotation;
+                }
+            }
             FreddlesSounds.Play();
         }
         if (currentAI[39] >= 1 && was0 && index == 39)
@@ -4430,6 +4965,45 @@ public class CustomNight : MonoBehaviour
             RockstarBonnieGuitar.sprite = load_sprite(RockstarBonnieAddresses[1]);
             StartCoroutine(RockstarBonnieLoop());
         }
+        if (currentAI[50] >= 1 && was0 && index == 50)
+        {
+            PlushtrapState = 0;
+            StartCoroutine(PlushtrapLoop());
+        }  
+        if (currentAI[51] >= 1 && was0 && index == 51)
+        {
+            ActivateBonnet();
+        }
+        if (currentAI[52] >= 1 && was0 && index == 52)
+        {
+            StartCoroutine(EnableLOLBit(isXor));
+        }
+        if (currentAI[53] >= 1 && was0 && index == 53)
+        {
+            StartCoroutine(NightmareChicaLoop());
+            Debug.Log("Uh Huh");
+        }  
+        if (currentAI[54] >= 1 && was0 && index == 54)
+        {
+            StartCoroutine(ActivateMinireenas());
+        }
+        if (currentAI[55] >= 1 && was0 && index == 55)
+        {
+            StartCoroutine(ActivateRWQ());
+        }
+    }
+
+    IEnumerator PlushtrapLoop()
+    {
+        int i = 0;
+        int frameCount = Random.Range(700, 1199);
+        while (i < frameCount)
+        {
+            i++;
+            yield return null;
+        }
+        if (PlushtrapState == 0)
+        StartJumpscare(PlushtrapJumpscareAddress, 0, "Plushtrap");
     }
 
     IEnumerator DisplayNewChallenger()
@@ -4670,10 +5244,7 @@ public class CustomNight : MonoBehaviour
         bool awardCoins = true;
         DCoin.sprite = NormalDCoinSprite;
         currentCam = Cam;
-        if (awardCoins)
-        {
-            SwitchCam.Play();
-        }
+        SwitchCam.Play();
         if (currentCam == 4)
         {
             ChicaPotsAndPans.volume = 1f;
@@ -4874,6 +5445,17 @@ public class CustomNight : MonoBehaviour
         if (currentCam == RBonnieCamera)
         {
             RockstarBonnieGuitar.gameObject.SetActive(true);
+        }
+
+        if (currentCam == 6 && PlushtrapState == 0)
+        {
+            PlushtrapContainer.SetActive(true);
+            PlushtrapAnimator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(PlushtrapChairAddress);
+            StartCoroutine(PlushtrapCamLoop());
+        }
+        else
+        {
+            PlushtrapContainer.SetActive(false);
         }
     }
 
@@ -5086,6 +5668,32 @@ public class CustomNight : MonoBehaviour
         {
             RockstarBonnieGuitar.gameObject.SetActive(true);
         }
+
+        if (currentCam == 6 && PlushtrapState == 0)
+        {
+            PlushtrapContainer.SetActive(true);
+            PlushtrapAnimator.runtimeAnimatorController = Resources.Load<RuntimeAnimatorController>(PlushtrapChairAddress);
+            StartCoroutine(PlushtrapCamLoop());
+        }
+        else
+        {
+            PlushtrapContainer.SetActive(false);
+        }
+    }
+
+    IEnumerator PlushtrapCamLoop()
+    {
+        float time = 0f;
+        while (currentCam == 6 && PlushtrapState == 0 && time < 1.6f)
+        {
+            time += Time.deltaTime;
+            yield return null;
+        }
+        if (currentCam == 6 && PlushtrapState == 0 && camsActive)
+        {
+            PlushtrapAnimator.Play("Plushtrap_off");
+            PlushtrapState = -1;
+        }
     }
 
     IEnumerator BonnieJumpscareCoroutine()
@@ -5206,8 +5814,6 @@ public class CustomNight : MonoBehaviour
         camsActive = true;
         MonitorAnimator.Play("MonitorFlipUp");
         Usage++;
-        goldenFreddyInOffice = false;
-        gfP = false;
     }
 
     // Function to deactivate cameras
@@ -5216,6 +5822,38 @@ public class CustomNight : MonoBehaviour
         CamExclusiveUI.SetActive(false);
         CameraExclusiveOverLap.SetActive(false);
         camsActive = false;
+        trueCamsActive = false;
+        if (Random.value <= 0.0001f)
+        {
+            Bouncepot.SetActive(true);
+        }
+        if (Random.value <= 0.0001f)
+        {
+            Tangle.SetActive(true);
+        }
+        if (Random.value <= 0.0001f)
+        {
+            WhiteRabbit.SetActive(true);
+        }
+        if (Random.value <= 0.00001f)
+        {
+            DeskHat.SetActive(true);
+        }
+        if (ActivateMinireenasN == true)
+        {
+            Minireenas.gameObject.SetActive(true);
+        }
+        if (activateRWQNext)
+        {
+            RWQCarrier.SetActive(true);
+        }
+        if (Random.value <= 0.15f && office == 2)
+        {
+            SpringtrapFlash.sprite = load_sprite(SpringtrapFlashPath);
+            SpringtrapFlash.gameObject.SetActive(true);
+        }
+        LowerNC.gameObject.SetActive(true);
+        UpperNC.gameObject.SetActive(true);
         MonitorAnimator.Play("MonitorFlipDown");
         Cameras.SetActive(false);
         RFoxyObjects.SetActive(true);
@@ -5273,6 +5911,14 @@ public class CustomNight : MonoBehaviour
         yield return new WaitForSeconds(0.317f);
         if (camsActive)
         {
+            trueCamsActive = true;
+            goldenFreddyInOffice = false;
+            gfP = false;
+            SpringtrapFlash.gameObject.SetActive(false);
+            RWQCarrier.SetActive(false);
+            Minireenas.gameObject.SetActive(false);
+            LowerNC.gameObject.SetActive(false);
+        UpperNC.gameObject.SetActive(false);
             RFoxyObjects.SetActive(false);
             CamExclusiveUI.SetActive(active);
             CameraExclusiveOverLap.SetActive(active);

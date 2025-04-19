@@ -26,6 +26,17 @@ public class WinNight : MonoBehaviour
         System.GC.Collect();
         Points = DataManager.GetValue<int>("LastWonScore", "data:/");
         StartCoroutine(ScoreSequence());
+        int challenges = DataManager.GetValue<int>("Challenge", "data:/");
+        if (challenges != -1)
+        {
+            int[] cchallenges = DataManager.GetValue<int[]>("CompletedChallenges", "data:/");
+            if (!DataManager.ValueExists("CompletedChallenges", "data:/"))
+            {
+                cchallenges = new int[16];
+            }
+            cchallenges[challenges] = 1;
+            DataManager.SaveValue<int[]>("CompletedChallenges", cchallenges, "data:/");
+        }
     }
 
     private IEnumerator ScoreSequence()
@@ -94,14 +105,73 @@ public class WinNight : MonoBehaviour
 		{
 			DataManager.SaveValue<int>("Highscore",Points ,"data:/");
 			HighScore.SetActive(true);
-		}
+        }
         StartCoroutine(IncrementScore());
 
         // Wait for the audio to finish before loading the next scene
         yield return new WaitForSeconds(MainAS.clip.length);
 
-        // Load the next scene (you can replace "NextSceneName" with your actual scene name)
-        SceneManager.LoadScene("MainMenuLoader");
+        if (Points >= 9800 && DataManager.GetValue<bool>("HasWatchedGF", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 9100 && DataManager.GetValue<bool>("HasWatchedTCFinal", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 8400 && DataManager.GetValue<bool>("HasWatchedTC5", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 7700 && DataManager.GetValue<bool>("HasWatchedSamuraiFinal", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 7000 && DataManager.GetValue<bool>("HasWatchedTC4", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 6300 && DataManager.GetValue<bool>("HasWatchedSamurai4", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 5600 && DataManager.GetValue<bool>("HasWatchedTC3", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 4900 && DataManager.GetValue<bool>("HasWatchedSamurai3", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 4200 && DataManager.GetValue<bool>("HasWatchedTC2", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 3500 && DataManager.GetValue<bool>("HasWatchedSamurai2", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 2800 && DataManager.GetValue<bool>("HasWatchedTC1", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 2100 && DataManager.GetValue<bool>("HasWatchedSamurai1", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 1400 && DataManager.GetValue<bool>("HasWatchedTC0", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else if (Points >= 700 && DataManager.GetValue<bool>("HasWatchedSamurai0", "data:/") == false)
+        {
+            SceneManager.LoadScene("Intermission");
+        }
+        else
+        {
+            SceneManager.LoadScene("MainMenuLoader");
+        }
+        
     }
 
     // Coroutine to increment the score over the specified duration

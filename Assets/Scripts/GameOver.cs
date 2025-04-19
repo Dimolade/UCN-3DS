@@ -180,6 +180,13 @@ public class GameOver : MonoBehaviour {
 		"VoiceLines/RBonnie/4"
 	};
 	public string[] FredbearAddresses;
+	public string[] BonnetAddresses = new string[] {
+		"VoiceLines/Bonnet/0",
+		"VoiceLines/Bonnet/1",
+		"VoiceLines/Bonnet/2",
+		"VoiceLines/Bonnet/3",
+		"VoiceLines/Bonnet/4"
+	};
 	private bool done;
 	private string lastCharacter;
 	private float survivalTime;
@@ -341,6 +348,10 @@ public class GameOver : MonoBehaviour {
 			MainAudioSource.clip = load_audioClip(FredbearAddresses[Random.Range(0,FredbearAddresses.Length)]);
 			MainAudioSource.Play();
 			break;
+			case "Bonnet":
+			MainAudioSource.clip = load_audioClip(BonnetAddresses[random]);
+			MainAudioSource.Play();
+			break;
 		}
 	}
 
@@ -446,7 +457,19 @@ public class GameOver : MonoBehaviour {
 	IEnumerator Quit()
 	{
 		GameOverAnimator.Play("GameOverDisappear");
+		int Frigids = DataManager.GetValue<int>("Frigid", "data:/");
+        int Coins = DataManager.GetValue<int>("Coins", "data:/");
+        int Batteries = DataManager.GetValue<int>("Battery", "data:/");
+        int DDRepels = DataManager.GetValue<int>("DDRepel", "data:/");
+		int PUPOdds = DataManager.GetValue<int>("PowerUpOdds", "data:/");
 		yield return new WaitForSeconds(0.683f);
-		SceneManager.LoadScene("MainMenuLoader");
+		if ((Random.Range(0,11) <= (2+PUPOdds)) && (Frigids < 10 || Coins < 10 || Batteries < 10 || DDRepels < 10))
+		{
+			UnityEngine.SceneManagement.SceneManager.LoadScene("PowerUp");
+		}
+		else
+		{
+			UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuLoader");
+		}
 	}
 }
